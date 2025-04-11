@@ -13,7 +13,11 @@ abstract class Smart
 {
     //ToDo метод для добавления комментария в timeline
     //ToDo метод для получения связанных элементов и обратных связей
-    //ToDo Метод для получения instance по ИД или по item
+    //ToDo Метод для быстрого сохранения и сохранения через операции
+    //ToDo удобный метод для смены стадий, как то генерировать перечисление стадий
+    //ToDo автоматической создания, обновление и удаление полей если их нет
+    //ToDo Удобный фильтр который сразу возвращает объекты класса обертки
+    //ToDo Автоматическое создание смартов путем сканирования папки или еще как то
     private Item $item;
 
     /**
@@ -24,15 +28,20 @@ abstract class Smart
     public function __construct(Item $item){
         $this->item = $item;
     }
+
+    /**
+     * @return Item
+     */
     public function getItem(): Item
     {
         return $this->item;
     }
 
     /**
+     * @return int
+     * @throws ArgumentException
      * @throws ObjectPropertyException
      * @throws SystemException
-     * @throws ArgumentException
      */
     public static function getEntityTypeId() : int
     {
@@ -47,6 +56,9 @@ abstract class Smart
     }
 
     /**
+     * @return Factory
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
      * @throws SystemException
      */
     public static function getFactory() : Factory
@@ -56,6 +68,25 @@ abstract class Smart
             throw new SystemException("Ошибка получения фабрики для ".static::getEntityTypeId());
         }
         return $factory;
+    }
+    public static function getInstanceById(int $id) : self
+    {
+        $factory = static::getFactory();
+        $item = $factory->getItem($id);
+        if(!$item){
+            throw new SystemException("Ошибка получения элемента CRM. Для ENTITY_TYPE_ID: ".static::getEntityTypeId()." элемент с ID:".$id." отсуствует");
+        }
+        return new static($item);
+    }
+
+    /**
+     * Метод дополняет переданный текст ошибки информацией о типе сущности и идентификаторе элемента
+     * @param string $message
+     * @return string
+     */
+    public function getErrorMessage(string $message) : string
+    {
+        return $message." NAME:".$this->getName()." ENTITY_TYPE_ID:".$this->getEntityTypeId()." ID:".$this->getItem()->getId();
     }
 
 }
