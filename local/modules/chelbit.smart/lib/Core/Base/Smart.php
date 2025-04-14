@@ -7,6 +7,7 @@ use Bitrix\Crm\Service\Container;
 use Bitrix\Crm\Service\Factory;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ObjectPropertyException;
+use Bitrix\Main\ORM\Data\AddResult;
 use Bitrix\Main\SystemException;
 
 abstract class Smart
@@ -21,10 +22,98 @@ abstract class Smart
     private Item $item;
 
     /**
-     * Метод должен вернуть имя смарт процесса как указано в таблице b_crm_dynamic_type
+     * Метод должен вернуть имя смарт процесса как указано в таблице b_crm_dynamic_type если смарт процесс создавали
+     * через WEB интерфейс. Если смарт процесс будет создан при установке модуля, нужно указать символьный код
+     * Не допускаются любые символы кроме [A-Za-z], рекомендуется использовать UPPERCASE.
+     * Задается один раз при создании смарт процесса
+     * Например: MYNAME
      * @return string
      */
     abstract static function getName(): string;
+
+    /**
+     * То что отображается в публичной части, можно менять неограниченное количество раз
+     * @return string
+     */
+    abstract static function getTitle(): string;
+
+    /**
+     * Включены ли направления у смарт-процесса.
+     * @return bool
+     */
+    abstract static function isCategoriesEnabled() : bool;
+
+    /**
+     * Включены ли стадии у смарт-процесса.
+     * @return bool
+     */
+    abstract static function isStagesEnabled() : bool;
+
+    /**
+     * Включены ли поля "Дата начала" и "Дата окончания".
+     * @return bool
+     */
+    abstract static function isBeginCloseDatesEnabled() : bool;
+
+    /**
+     * Включено ли поле "Клиент" (привязка к компании и контактам).
+     * @return bool
+     */
+    abstract static function isClientEnabled() : bool;
+
+    /**
+     * Включен ли функционал товаров.
+     * @return bool
+     */
+    abstract static function isLinkWithProductsEnabled() : bool;
+
+    /**
+     * Включено ли поле "Реквизиты моей компании".
+     * @return bool
+     */
+    abstract static function isMyCompanyEnabled() : bool;
+
+    /**
+     * Включена ли печать документов.
+     * @return bool
+     */
+    abstract static function isDocumentsEnabled() : bool;
+
+    /**
+     * Включено ли поле "Источник" и "Подробнее об источнике".
+     * @return bool
+     */
+    abstract static function isSourceEnabled() : bool;
+
+    /**
+     * Включено ли поле "Наблюдатели".
+     * @return bool
+     */
+    abstract static function isObserversEnabled() : bool;
+
+    /**
+     * Включен ли функционал корзины.
+     * @return bool
+     */
+    abstract static function isRecyclebinEnabled() : bool;
+
+    /**
+     * Включены ли роботы и триггеры
+     * @return bool
+     */
+    abstract static function isAutomationEnabled() : bool;
+
+    /**
+     * Включен ли дизайнер бизнес процессов
+     * @return bool
+     */
+    abstract static function isBizProcEnabled() : bool;
+
+    /**
+     * Открывать ли доступ к новому направлению всем ролям.
+     * @return bool
+     */
+    abstract static function isSetOpenPermissions() : bool;
     public function __construct(Item $item){
         $this->item = $item;
     }
@@ -86,6 +175,29 @@ abstract class Smart
             throw new SystemException("Ошибка получения элемента CRM. Для ENTITY_TYPE_ID: ".static::getEntityTypeId()." элемент с ID:".$id." отсуствует");
         }
         return new static($item);
+    }
+    public static function add() : AddResult
+    {
+        return TypeTable::add(
+            [
+                "NAME" => static::getName(),
+                "TITLE" => static::getTitle(),
+                "ENTITY_TYPE_ID" => TypeTable::getNextAvailableEntityTypeId(),
+                "IS_CATEGORIES_ENABLED" => static::isCategoriesEnabled(),
+                "IS_STAGES_ENABLED" => static::isStagesEnabled(),
+                "IS_BEGIN_CLOSE_DATES_ENABLED" => static::isBeginCloseDatesEnabled(),
+                "IS_CLIENT_ENABLED" => static::isClientEnabled(),
+                "IS_LINK_WITH_PRODUCTS" => static::isLinkWithProductsEnabled(),
+                "IS_MYCOMPANY_ENABLED"=> static::isMyCompanyEnabled(),
+                "IS_DOCUMENTS_ENABLED"=> static::isDocumentsEnabled(),
+                "IS_SOURCE_ENABLED"=> static::isSourceEnabled(),
+                "IS_OBSERVERS_ENABLED" => static::isObserversEnabled(),
+                "IS_RECYCLEBIN_ENABLED" => static::isRecyclebinEnabled(),
+                "IS_AUTOMATION_ENABLED" => static::isAutomationEnabled(),
+                "IS_BIZ_PROC_ENABLED" => static::isBizProcEnabled(),
+                "IS_SET_OPEN_PERMISSIONS" => static::isSetOpenPermissions(),
+            ]
+        );
     }
 
     /**
