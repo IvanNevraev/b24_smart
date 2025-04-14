@@ -69,6 +69,15 @@ abstract class Smart
         }
         return $factory;
     }
+
+    /**
+     * Получить объект класса обертки по ID элементу
+     * @param int $id
+     * @return self
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
     public static function getInstanceById(int $id) : self
     {
         $factory = static::getFactory();
@@ -83,6 +92,9 @@ abstract class Smart
      * Метод дополняет переданный текст ошибки информацией о типе сущности и идентификаторе элемента
      * @param string $message
      * @return string
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
      */
     public function getErrorMessage(string $message) : string
     {
