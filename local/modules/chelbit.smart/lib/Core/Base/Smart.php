@@ -11,6 +11,7 @@ use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ObjectPropertyException;
 use Bitrix\Main\ORM\Data\AddResult;
 use Bitrix\Main\SystemException;
+use Exception;
 
 abstract class Smart
 {
@@ -174,14 +175,31 @@ abstract class Smart
         $factory = static::getFactory();
         $item = $factory->getItem($id);
         if(!$item){
-            throw new SystemException("Ошибка получения элемента CRM. Для ENTITY_TYPE_ID: ".static::getEntityTypeId()." элемент с ID:".$id." отсуствует");
+            throw new SystemException("Ошибка получения элемента CRM. Для ENTITY_TYPE_ID: ".static::getEntityTypeId()." элемент с ID:".$id." отсутствует");
         }
         return new static($item);
     }
+
+    /**
+     * @return ItemIdentifier
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
     public function getItemIdentifier() : ItemIdentifier
     {
         return new ItemIdentifier($this::getEntityTypeId(), $this->getItem()->getId());
     }
+
+    /**
+     * Метод возвращать родительский элемент или null
+     * Если тип связи не настроен выбрасывается исключение
+     * @param string $class Имя класса родителя например \ChelBit\Smart\CRM\Invoice::class
+     * @return Smart|null Вернет объект класса переданного в параметре или null
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
     public function getParentItem(string $class) : Smart|null
     {
         /**
@@ -192,8 +210,7 @@ abstract class Smart
         if(!$relationManager->areTypesBound($relationIdentifier)){
             throw new SystemException("Смарт-процесс ".$class::getEntityTypeTitle()." не может быть родителем для ".$this::getEntityTypeTitle());
         }
-        $itemIdentifier = $this->getItemIdentifier();
-        $parentItemIdentifiers = $relationManager->getParentElements($itemIdentifier);
+        $parentItemIdentifiers = $relationManager->getParentElements($this->getItemIdentifier());
         foreach ($parentItemIdentifiers as $parentItemIdentifier){
             if($parentItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
                 return $class::getInstanceById($parentItemIdentifier->getEntityId());
@@ -201,6 +218,40 @@ abstract class Smart
         }
         return null;
     }
+
+    /**
+     *  Метод возвращать дочерние элементы или пустой массив
+     *  Если тип связи не настроен выбрасывается исключение
+     * @param string $class Имя класса родителя например \ChelBit\Smart\CRM\Invoice::class
+     * @return static[]
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function getChildren(string $class) : array
+    {
+        /**
+         * @var Smart $class
+         */
+        $relationManager = Container::getInstance()->getRelationManager();
+        $relationIdentifier = new RelationIdentifier($this::getEntityTypeId(), $class::getEntityTypeId());
+        if(!$relationManager->areTypesBound($relationIdentifier)){
+            throw new SystemException("Смарт-процесс ".$class::getEntityTypeTitle()." не может быть дочерним для ".$this::getEntityTypeTitle());
+        }
+        $childrenItemIdentifiers = $relationManager->getChildElements($this->getItemIdentifier());
+        $return = [];
+        foreach ($childrenItemIdentifiers as $childrenItemIdentifier){
+            if($childrenItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
+                $return[] = $class::getInstanceById($childrenItemIdentifier->getEntityId());
+            }
+        }
+        return $return;
+    }
+
+    /**
+     * @return AddResult
+     * @throws Exception
+     */
     public static function add() : AddResult
     {
         return TypeTable::add(
