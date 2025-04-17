@@ -7,7 +7,7 @@ use ChelBit\Smart\Core\Base\Smart;
 class Contact extends Smart
 {
 
-    static function getName(): string
+    static function getEntityTypeName(): string
     {
         return CCrmOwnerType::ContactName;
     }
@@ -15,7 +15,7 @@ class Contact extends Smart
     {
         return CCrmOwnerType::Contact;
     }
-    static function getTitle(): string
+    static function getEntityTypeTitle(): string
     {
         return "Контакт";
     }

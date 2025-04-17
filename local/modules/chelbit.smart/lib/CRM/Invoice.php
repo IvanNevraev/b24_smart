@@ -6,11 +6,11 @@ use ChelBit\Smart\Core\Base\Smart;
 class Invoice extends Smart
 {
 
-    static function getName(): string
+    static function getEntityTypeName(): string
     {
         return "SmartInvoice";
     }
-    static function getTitle(): string
+    static function getEntityTypeTitle(): string
     {
         return "Счет";
     }

@@ -2,7 +2,9 @@
 namespace ChelBit\Smart\Core\Base;
 
 use Bitrix\Crm\Item;
+use Bitrix\Crm\ItemIdentifier;
 use Bitrix\Crm\Model\Dynamic\TypeTable;
+use Bitrix\Crm\RelationIdentifier;
 use Bitrix\Crm\Service\Container;
 use Bitrix\Crm\Service\Factory;
 use Bitrix\Main\ArgumentException;
@@ -29,13 +31,13 @@ abstract class Smart
      * Например: MYNAME
      * @return string
      */
-    abstract static function getName(): string;
+    abstract static function getEntityTypeName(): string;
 
     /**
      * То что отображается в публичной части, можно менять неограниченное количество раз
      * @return string
      */
-    abstract static function getTitle(): string;
+    abstract static function getEntityTypeTitle(): string;
 
     /**
      * Включены ли направления у смарт-процесса.
@@ -135,11 +137,11 @@ abstract class Smart
     public static function getEntityTypeId() : int
     {
         $res = TypeTable::getRow([
-            "filter" => ["NAME" => static::getName()],
+            "filter" => ["NAME" => static::getEntityTypeName()],
             "select" => ["ENTITY_TYPE_ID"],
         ]);
         if (!$res) {
-            throw new SystemException("Ошибка получения идентификатора смарт процесса по имени: " . static::getName());
+            throw new SystemException("Ошибка получения идентификатора смарт процесса по имени: " . static::getEntityTypeName());
         }
         return (int)$res["ENTITY_TYPE_ID"];
     }
@@ -176,12 +178,35 @@ abstract class Smart
         }
         return new static($item);
     }
+    public function getItemIdentifier() : ItemIdentifier
+    {
+        return new ItemIdentifier($this::getEntityTypeId(), $this->getItem()->getId());
+    }
+    public function getParentItem(string $class) : Smart|null
+    {
+        /**
+         * @var Smart $class
+         */
+        $relationManager = Container::getInstance()->getRelationManager();
+        $relationIdentifier = new RelationIdentifier($class::getEntityTypeId(), $this::getEntityTypeId());
+        if(!$relationManager->areTypesBound($relationIdentifier)){
+            throw new SystemException("Смарт-процесс ".$class::getEntityTypeTitle()." не может быть родителем для ".$this::getEntityTypeTitle());
+        }
+        $itemIdentifier = $this->getItemIdentifier();
+        $parentItemIdentifiers = $relationManager->getParentElements($itemIdentifier);
+        foreach ($parentItemIdentifiers as $parentItemIdentifier){
+            if($parentItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
+                return $class::getInstanceById($parentItemIdentifier->getEntityId());
+            }
+        }
+        return null;
+    }
     public static function add() : AddResult
     {
         return TypeTable::add(
             [
-                "NAME" => static::getName(),
-                "TITLE" => static::getTitle(),
+                "NAME" => static::getEntityTypeName(),
+                "TITLE" => static::getEntityTypeTitle(),
                 "ENTITY_TYPE_ID" => TypeTable::getNextAvailableEntityTypeId(),
                 "IS_CATEGORIES_ENABLED" => static::isCategoriesEnabled(),
                 "IS_STAGES_ENABLED" => static::isStagesEnabled(),
@@ -210,7 +235,7 @@ abstract class Smart
      */
     public function getErrorMessage(string $message) : string
     {
-        return $message." NAME:".$this->getName()." ENTITY_TYPE_ID:".$this->getEntityTypeId()." ID:".$this->getItem()->getId();
+        return $message." NAME:".$this->getEntityTypeName()." ENTITY_TYPE_ID:".$this->getEntityTypeId()." ID:".$this->getItem()->getId();
     }
 
 }

@@ -7,7 +7,7 @@ use ChelBit\Smart\Core\Base\Smart;
 class Lead extends Smart
 {
 
-    static function getName(): string
+    static function getEntityTypeName(): string
     {
         return CCrmOwnerType::LeadName;
     }
@@ -15,7 +15,7 @@ class Lead extends Smart
     {
         return CCrmOwnerType::Lead;
     }
-    static function getTitle(): string
+    static function getEntityTypeTitle(): string
     {
         return "Лид";
     }

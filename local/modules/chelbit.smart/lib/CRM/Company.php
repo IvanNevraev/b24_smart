@@ -7,7 +7,7 @@ use ChelBit\Smart\Core\Base\Smart;
 class Company extends Smart
 {
 
-    static function getName(): string
+    static function getEntityTypeName(): string
     {
         return CCrmOwnerType::CompanyName;
     }
@@ -15,7 +15,7 @@ class Company extends Smart
     {
         return CCrmOwnerType::Company;
     }
-    static function getTitle(): string
+    static function getEntityTypeTitle(): string
     {
         return "Компания";
     }

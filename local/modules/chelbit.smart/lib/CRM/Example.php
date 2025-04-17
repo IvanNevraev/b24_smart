@@ -9,14 +9,14 @@ use ChelBit\Smart\Core\Base\Smart;
 class Example extends Smart
 {
 
-    static function getName(): string
+    static function getEntityTypeName(): string
     {
         return "EXAMPLE";
     }
 
-    static function getTitle(): string
+    static function getEntityTypeTitle(): string
     {
-        return "Пример смарт процесса созданного кодом";
+        return "Пример смарт процесса";
     }
 
     static function isCategoriesEnabled(): bool
