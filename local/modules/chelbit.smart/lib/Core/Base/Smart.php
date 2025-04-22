@@ -189,6 +189,26 @@ abstract class Smart
     }
 
     /**
+     * Надстройка над штатным методом для получения массива элементов
+     * уже обернутых в вспомогательные классы
+     * @param array $parameters
+     * @return self[]
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public static function getItems(array $parameters) : array
+    {
+        $factory = static::getFactory();
+        $items = $factory->getItems($parameters);
+        $return = [];
+        foreach($items as $item){
+            $return[$item->getId()] = new static($item);
+        }
+        return $return;
+    }
+
+    /**
      * @return ItemIdentifier
      * @throws ArgumentException
      * @throws ObjectPropertyException
