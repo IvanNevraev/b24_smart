@@ -27,6 +27,11 @@ abstract class Smart
      * @var Factory[]
      */
     private static array $factories;
+    private Smart|null $parent;
+    /**
+     * @var Smart[]
+     */
+    private array $children;
 
     /**
      * Метод должен вернуть имя смарт процесса как указано в таблице b_crm_dynamic_type если смарт процесс создавали
@@ -230,6 +235,9 @@ abstract class Smart
      */
     public function getParentItem(string $class) : Smart|null
     {
+        if(isset($this->parent)){
+            return $this->parent;
+        }
         /**
          * @var Smart $class
          */
@@ -241,10 +249,12 @@ abstract class Smart
         $parentItemIdentifiers = $relationManager->getParentElements($this->getItemIdentifier());
         foreach ($parentItemIdentifiers as $parentItemIdentifier){
             if($parentItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
-                return $class::getInstanceById($parentItemIdentifier->getEntityId());
+                $this->parent = $class::getInstanceById($parentItemIdentifier->getEntityId());
+                return $this->parent;
             }
         }
-        return null;
+        $this->parent = null;
+        return $this->parent;
     }
 
     /**
@@ -258,6 +268,9 @@ abstract class Smart
      */
     public function getChildren(string $class) : array
     {
+        if(isset($this->children)){
+            return $this->children;
+        }
         /**
          * @var Smart $class
          */
@@ -267,13 +280,12 @@ abstract class Smart
             throw new SystemException("Смарт-процесс ".$class::getEntityTypeTitle()." не может быть дочерним для ".$this::getEntityTypeTitle());
         }
         $childrenItemIdentifiers = $relationManager->getChildElements($this->getItemIdentifier());
-        $return = [];
         foreach ($childrenItemIdentifiers as $childrenItemIdentifier){
             if($childrenItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
-                $return[] = $class::getInstanceById($childrenItemIdentifier->getEntityId());
+                $this->children[] = $class::getInstanceById($childrenItemIdentifier->getEntityId());
             }
         }
-        return $return;
+        return $this->children;
     }
 
     /**
