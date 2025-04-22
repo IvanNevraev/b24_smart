@@ -23,6 +23,10 @@ abstract class Smart
     //ToDo Удобный фильтр который сразу возвращает объекты класса обертки
     //ToDo Автоматическое создание смартов путем сканирования папки или еще как то
     private Item $item;
+    /**
+     * @var Factory[]
+     */
+    public static array $factories;
 
     /**
      * Метод должен вернуть имя смарт процесса как указано в таблице b_crm_dynamic_type если смарт процесс создавали
@@ -155,11 +159,15 @@ abstract class Smart
      */
     public static function getFactory() : Factory
     {
+        if(isset(static::$factories[static::class])) {
+            return static::$factories[static::class];
+        }
         $factory = Container::getInstance()->getFactory(static::getEntityTypeId());
         if(!$factory){
             throw new SystemException("Ошибка получения фабрики для ".static::getEntityTypeId());
         }
-        return $factory;
+        static::$factories[static::class] = $factory;
+        return  static::$factories[static::class];
     }
 
     /**
