@@ -26,7 +26,7 @@ abstract class Smart
     /**
      * @var Factory[]
      */
-    public static array $factories;
+    private static array $factories;
 
     /**
      * Метод должен вернуть имя смарт процесса как указано в таблице b_crm_dynamic_type если смарт процесс создавали
