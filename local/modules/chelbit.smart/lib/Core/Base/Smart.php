@@ -9,9 +9,7 @@ use Bitrix\Crm\Service\Container;
 use Bitrix\Crm\Service\Factory;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ObjectPropertyException;
-use Bitrix\Main\ORM\Data\AddResult;
 use Bitrix\Main\SystemException;
-use Exception;
 
 abstract class Smart
 {
@@ -42,90 +40,7 @@ abstract class Smart
      * @return string
      */
     abstract static function getEntityTypeName(): string;
-
-    /**
-     * То что отображается в публичной части, можно менять неограниченное количество раз
-     * @return string
-     */
-    abstract static function getEntityTypeTitle(): string;
-
-    /**
-     * Включены ли направления у смарт-процесса.
-     * @return bool
-     */
-    abstract static function isCategoriesEnabled() : bool;
-
-    /**
-     * Включены ли стадии у смарт-процесса.
-     * @return bool
-     */
-    abstract static function isStagesEnabled() : bool;
-
-    /**
-     * Включены ли поля "Дата начала" и "Дата окончания".
-     * @return bool
-     */
-    abstract static function isBeginCloseDatesEnabled() : bool;
-
-    /**
-     * Включено ли поле "Клиент" (привязка к компании и контактам).
-     * @return bool
-     */
-    abstract static function isClientEnabled() : bool;
-
-    /**
-     * Включен ли функционал товаров.
-     * @return bool
-     */
-    abstract static function isLinkWithProductsEnabled() : bool;
-
-    /**
-     * Включено ли поле "Реквизиты моей компании".
-     * @return bool
-     */
-    abstract static function isMyCompanyEnabled() : bool;
-
-    /**
-     * Включена ли печать документов.
-     * @return bool
-     */
-    abstract static function isDocumentsEnabled() : bool;
-
-    /**
-     * Включено ли поле "Источник" и "Подробнее об источнике".
-     * @return bool
-     */
-    abstract static function isSourceEnabled() : bool;
-
-    /**
-     * Включено ли поле "Наблюдатели".
-     * @return bool
-     */
-    abstract static function isObserversEnabled() : bool;
-
-    /**
-     * Включен ли функционал корзины.
-     * @return bool
-     */
-    abstract static function isRecyclebinEnabled() : bool;
-
-    /**
-     * Включены ли роботы и триггеры
-     * @return bool
-     */
-    abstract static function isAutomationEnabled() : bool;
-
-    /**
-     * Включен ли дизайнер бизнес процессов
-     * @return bool
-     */
-    abstract static function isBizProcEnabled() : bool;
-
-    /**
-     * Открывать ли доступ к новому направлению всем ролям.
-     * @return bool
-     */
-    abstract static function isSetOpenPermissions() : bool;
+    abstract static function getEntityTypeTitle() : string;
     public function __construct(Item $item){
         $this->item = $item;
     }
@@ -195,7 +110,7 @@ abstract class Smart
 
     /**
      * Надстройка над штатным методом для получения массива элементов
-     * уже обернутых в вспомогательные классы
+     * уже обернутых во вспомогательные классы
      * @param array $parameters
      * @return self[]
      * @throws ArgumentException
@@ -286,34 +201,6 @@ abstract class Smart
             }
         }
         return $this->children;
-    }
-
-    /**
-     * @return AddResult
-     * @throws Exception
-     */
-    public static function add() : AddResult
-    {
-        return TypeTable::add(
-            [
-                "NAME" => static::getEntityTypeName(),
-                "TITLE" => static::getEntityTypeTitle(),
-                "ENTITY_TYPE_ID" => TypeTable::getNextAvailableEntityTypeId(),
-                "IS_CATEGORIES_ENABLED" => static::isCategoriesEnabled(),
-                "IS_STAGES_ENABLED" => static::isStagesEnabled(),
-                "IS_BEGIN_CLOSE_DATES_ENABLED" => static::isBeginCloseDatesEnabled(),
-                "IS_CLIENT_ENABLED" => static::isClientEnabled(),
-                "IS_LINK_WITH_PRODUCTS" => static::isLinkWithProductsEnabled(),
-                "IS_MYCOMPANY_ENABLED"=> static::isMyCompanyEnabled(),
-                "IS_DOCUMENTS_ENABLED"=> static::isDocumentsEnabled(),
-                "IS_SOURCE_ENABLED"=> static::isSourceEnabled(),
-                "IS_OBSERVERS_ENABLED" => static::isObserversEnabled(),
-                "IS_RECYCLEBIN_ENABLED" => static::isRecyclebinEnabled(),
-                "IS_AUTOMATION_ENABLED" => static::isAutomationEnabled(),
-                "IS_BIZ_PROC_ENABLED" => static::isBizProcEnabled(),
-                "IS_SET_OPEN_PERMISSIONS" => static::isSetOpenPermissions(),
-            ]
-        );
     }
 
     /**
