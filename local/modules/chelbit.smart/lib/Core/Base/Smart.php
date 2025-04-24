@@ -9,9 +9,7 @@ use Bitrix\Crm\Service\Container;
 use Bitrix\Crm\Service\Factory;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ObjectPropertyException;
-use Bitrix\Main\ORM\Data\AddResult;
 use Bitrix\Main\SystemException;
-use Exception;
 
 abstract class Smart
 {
@@ -27,10 +25,10 @@ abstract class Smart
      * @var Factory[]
      */
     private static array $factories;
-    private Smart|null $parent;
     /**
-     * @var Smart[]
+     * @var Smart[] $parents
      */
+    private array $parents;
     private array $children;
 
     /**
@@ -42,90 +40,7 @@ abstract class Smart
      * @return string
      */
     abstract static function getEntityTypeName(): string;
-
-    /**
-     * То что отображается в публичной части, можно менять неограниченное количество раз
-     * @return string
-     */
-    abstract static function getEntityTypeTitle(): string;
-
-    /**
-     * Включены ли направления у смарт-процесса.
-     * @return bool
-     */
-    abstract static function isCategoriesEnabled() : bool;
-
-    /**
-     * Включены ли стадии у смарт-процесса.
-     * @return bool
-     */
-    abstract static function isStagesEnabled() : bool;
-
-    /**
-     * Включены ли поля "Дата начала" и "Дата окончания".
-     * @return bool
-     */
-    abstract static function isBeginCloseDatesEnabled() : bool;
-
-    /**
-     * Включено ли поле "Клиент" (привязка к компании и контактам).
-     * @return bool
-     */
-    abstract static function isClientEnabled() : bool;
-
-    /**
-     * Включен ли функционал товаров.
-     * @return bool
-     */
-    abstract static function isLinkWithProductsEnabled() : bool;
-
-    /**
-     * Включено ли поле "Реквизиты моей компании".
-     * @return bool
-     */
-    abstract static function isMyCompanyEnabled() : bool;
-
-    /**
-     * Включена ли печать документов.
-     * @return bool
-     */
-    abstract static function isDocumentsEnabled() : bool;
-
-    /**
-     * Включено ли поле "Источник" и "Подробнее об источнике".
-     * @return bool
-     */
-    abstract static function isSourceEnabled() : bool;
-
-    /**
-     * Включено ли поле "Наблюдатели".
-     * @return bool
-     */
-    abstract static function isObserversEnabled() : bool;
-
-    /**
-     * Включен ли функционал корзины.
-     * @return bool
-     */
-    abstract static function isRecyclebinEnabled() : bool;
-
-    /**
-     * Включены ли роботы и триггеры
-     * @return bool
-     */
-    abstract static function isAutomationEnabled() : bool;
-
-    /**
-     * Включен ли дизайнер бизнес процессов
-     * @return bool
-     */
-    abstract static function isBizProcEnabled() : bool;
-
-    /**
-     * Открывать ли доступ к новому направлению всем ролям.
-     * @return bool
-     */
-    abstract static function isSetOpenPermissions() : bool;
+    abstract static function getEntityTypeTitle() : string;
     public function __construct(Item $item){
         $this->item = $item;
     }
@@ -195,7 +110,7 @@ abstract class Smart
 
     /**
      * Надстройка над штатным методом для получения массива элементов
-     * уже обернутых в вспомогательные классы
+     * уже обернутых во вспомогательные классы
      * @param array $parameters
      * @return self[]
      * @throws ArgumentException
@@ -233,10 +148,10 @@ abstract class Smart
      * @throws ObjectPropertyException
      * @throws SystemException
      */
-    public function getParentItem(string $class) : Smart|null
+    public function getParent(string $class) : Smart|null
     {
-        if(isset($this->parent)){
-            return $this->parent;
+        if(isset($this->parents[$class])){
+            return $this->parents[$class];
         }
         /**
          * @var Smart $class
@@ -249,27 +164,64 @@ abstract class Smart
         $parentItemIdentifiers = $relationManager->getParentElements($this->getItemIdentifier());
         foreach ($parentItemIdentifiers as $parentItemIdentifier){
             if($parentItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
-                $this->parent = $class::getInstanceById($parentItemIdentifier->getEntityId());
-                return $this->parent;
+                $this->parents[$class] = $class::getInstanceById($parentItemIdentifier->getEntityId());
+                return $this->parents[$class];
             }
         }
-        $this->parent = null;
-        return $this->parent;
+        $this->parents[$class] = null;
+        return $this->parents[$class];
+    }
+
+    /**
+     * Устанавливает переданный идентификатор в качестве родительской сущности. Перезаписывает текущую связь.
+     * Права не учитывает. Выбросит исключение если переданный объект не может быть установлен родителем.
+     * @param Smart $parent
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function setParent(Smart $parent): void
+    {
+        if(!static::areItemsBound($parent->getItemIdentifier(), $this->getItemIdentifier())){
+            static::bindItems($parent->getItemIdentifier(), $this->getItemIdentifier());
+        }
+        unset($this->parents[$parent::class]);
+    }
+
+    /**
+     * Очищает связь с родительским элементом переданного класса.
+     * Выбросит исключение если данный тип связи не настроен.
+     * @param string $class
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function unsetParent(string $class): void
+    {
+        $parent = $this->getParent($class);
+        if($parent){
+            if(static::areItemsBound($parent->getItemIdentifier(), $this->getItemIdentifier())){
+                static::unbindItems($parent->getItemIdentifier(), $this->getItemIdentifier());
+            }
+        }
+        unset($this->parents[$parent::class]);
     }
 
     /**
      *  Метод возвращать дочерние элементы или пустой массив
      *  Если тип связи не настроен выбрасывается исключение
      * @param string $class Имя класса родителя например \ChelBit\Smart\CRM\Invoice::class
-     * @return static[]
+     * @return Smart[]
      * @throws ArgumentException
      * @throws ObjectPropertyException
      * @throws SystemException
      */
     public function getChildren(string $class) : array
     {
-        if(isset($this->children)){
-            return $this->children;
+        if(isset($this->children[$class])){
+            return $this->children[$class];
         }
         /**
          * @var Smart $class
@@ -280,42 +232,64 @@ abstract class Smart
             throw new SystemException("Смарт-процесс ".$class::getEntityTypeTitle()." не может быть дочерним для ".$this::getEntityTypeTitle());
         }
         $childrenItemIdentifiers = $relationManager->getChildElements($this->getItemIdentifier());
+        $this->children[$class] = [];
         foreach ($childrenItemIdentifiers as $childrenItemIdentifier){
             if($childrenItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
-                $this->children[] = $class::getInstanceById($childrenItemIdentifier->getEntityId());
+                $this->children[$class][] = $class::getInstanceById($childrenItemIdentifier->getEntityId());
             }
         }
-        return $this->children;
+        return $this->children[$class];
     }
 
     /**
-     * @return AddResult
-     * @throws Exception
+     * Добавляет дочерний элемент к текущим
+     * @param Smart $child
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
      */
-    public static function add() : AddResult
+    public function addChild(Smart $child) : void
     {
-        return TypeTable::add(
-            [
-                "NAME" => static::getEntityTypeName(),
-                "TITLE" => static::getEntityTypeTitle(),
-                "ENTITY_TYPE_ID" => TypeTable::getNextAvailableEntityTypeId(),
-                "IS_CATEGORIES_ENABLED" => static::isCategoriesEnabled(),
-                "IS_STAGES_ENABLED" => static::isStagesEnabled(),
-                "IS_BEGIN_CLOSE_DATES_ENABLED" => static::isBeginCloseDatesEnabled(),
-                "IS_CLIENT_ENABLED" => static::isClientEnabled(),
-                "IS_LINK_WITH_PRODUCTS" => static::isLinkWithProductsEnabled(),
-                "IS_MYCOMPANY_ENABLED"=> static::isMyCompanyEnabled(),
-                "IS_DOCUMENTS_ENABLED"=> static::isDocumentsEnabled(),
-                "IS_SOURCE_ENABLED"=> static::isSourceEnabled(),
-                "IS_OBSERVERS_ENABLED" => static::isObserversEnabled(),
-                "IS_RECYCLEBIN_ENABLED" => static::isRecyclebinEnabled(),
-                "IS_AUTOMATION_ENABLED" => static::isAutomationEnabled(),
-                "IS_BIZ_PROC_ENABLED" => static::isBizProcEnabled(),
-                "IS_SET_OPEN_PERMISSIONS" => static::isSetOpenPermissions(),
-            ]
-        );
+        if(!static::areItemsBound($this->getItemIdentifier(), $child->getItemIdentifier())){
+            static::bindItems($this->getItemIdentifier(), $child->getItemIdentifier());
+        }
+        unset($this->children[$child::class]);
     }
 
+    /**
+     * Удаляет связь с дочерним элементом.
+     * Выбросит исключение если данный тип связи не поддерживается
+     * @param Smart $child
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function deleteChild(Smart $child) : void
+    {
+        if(static::areItemsBound($this->getItemIdentifier(), $child->getItemIdentifier())){
+            static::unbindItems($this->getItemIdentifier(), $child->getItemIdentifier());
+        }
+        unset($this->children[$child::class]);
+    }
+
+    /**
+     * Очистит связи с дочерними элементами переданного класса.
+     * @param string $class
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function unsetChildren(string $class): void
+    {
+        $children = $this->getChildren($class);
+        foreach($children as $child){
+            $this->deleteChild($child);
+        }
+        unset($this->children[$class]);
+    }
     /**
      * Метод дополняет переданный текст ошибки информацией о типе сущности и идентификаторе элемента
      * @param string $message
@@ -327,6 +301,44 @@ abstract class Smart
     public function getErrorMessage(string $message) : string
     {
         return $message." NAME:".$this->getEntityTypeName()." ENTITY_TYPE_ID:".$this->getEntityTypeId()." ID:".$this->getItem()->getId();
+    }
+
+    /**
+     * Связывает два элемента CRM. Права на доступ не учитывает
+     * @param ItemIdentifier $parent
+     * @param ItemIdentifier $child
+     * @return void
+     * @throws SystemException
+     */
+    private static function bindItems(ItemIdentifier $parent, ItemIdentifier $child) : void
+    {
+        $res = Container::getInstance()->getRelationManager()->bindItems($parent, $child);
+        if(!$res->isSuccess()){
+            $message = "Ошибка связывания объектов.";
+            $message .= " PARENT_ENTITY_TYPE_ID: ".$parent->getEntityTypeId();
+            $message .= " PARENT_ID: ".$parent->getEntityId();
+            $message .= " CHILD_ENTITY_TYPE_ID: ".$child->getEntityTypeId();
+            $message .= " CHILD_ID: ".$child->getEntityId();
+            $message .= " -> ".implode(";",$res->getErrorMessages());
+            throw new SystemException($message);
+        }
+    }
+    private static function areItemsBound(ItemIdentifier $parent, ItemIdentifier $child) : bool
+    {
+        return Container::getInstance()->getRelationManager()->areItemsBound($parent, $child);
+    }
+    private static function unbindItems(ItemIdentifier $parent, ItemIdentifier $child) : void
+    {
+        $res = Container::getInstance()->getRelationManager()->unbindItems($parent, $child);
+        if(!$res->isSuccess()){
+            $message = "Ошибка отвязывания объектов.";
+            $message .= " PARENT_ENTITY_TYPE_ID: ".$parent->getEntityTypeId();
+            $message .= " PARENT_ID: ".$parent->getEntityId();
+            $message .= " CHILD_ENTITY_TYPE_ID: ".$child->getEntityTypeId();
+            $message .= " CHILD_ID: ".$child->getEntityId();
+            $message .= " -> ".implode(";",$res->getErrorMessages());
+            throw new SystemException($message);
+        }
     }
 
 }
