@@ -25,10 +25,10 @@ abstract class Smart
      * @var Factory[]
      */
     private static array $factories;
-    private Smart|null $parent;
     /**
-     * @var Smart[]
+     * @var Smart[] $parents
      */
+    private array $parents;
     private array $children;
 
     /**
@@ -148,10 +148,10 @@ abstract class Smart
      * @throws ObjectPropertyException
      * @throws SystemException
      */
-    public function getParentItem(string $class) : Smart|null
+    public function getParent(string $class) : Smart|null
     {
-        if(isset($this->parent)){
-            return $this->parent;
+        if(isset($this->parents[$class])){
+            return $this->parents[$class];
         }
         /**
          * @var Smart $class
@@ -164,27 +164,64 @@ abstract class Smart
         $parentItemIdentifiers = $relationManager->getParentElements($this->getItemIdentifier());
         foreach ($parentItemIdentifiers as $parentItemIdentifier){
             if($parentItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
-                $this->parent = $class::getInstanceById($parentItemIdentifier->getEntityId());
-                return $this->parent;
+                $this->parents[$class] = $class::getInstanceById($parentItemIdentifier->getEntityId());
+                return $this->parents[$class];
             }
         }
-        $this->parent = null;
-        return $this->parent;
+        $this->parents[$class] = null;
+        return $this->parents[$class];
+    }
+
+    /**
+     * Устанавливает переданный идентификатор в качестве родительской сущности. Перезаписывает текущую связь.
+     * Права не учитывает. Выбросит исключение если переданный объект не может быть установлен родителем.
+     * @param Smart $parent
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function setParent(Smart $parent): void
+    {
+        if(!static::areItemsBound($parent->getItemIdentifier(), $this->getItemIdentifier())){
+            static::bindItems($parent->getItemIdentifier(), $this->getItemIdentifier());
+        }
+        unset($this->parents[$parent::class]);
+    }
+
+    /**
+     * Очищает связь с родительским элементом переданного класса.
+     * Выбросит исключение если данный тип связи не настроен.
+     * @param string $class
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function unsetParent(string $class): void
+    {
+        $parent = $this->getParent($class);
+        if($parent){
+            if(static::areItemsBound($parent->getItemIdentifier(), $this->getItemIdentifier())){
+                static::unbindItems($parent->getItemIdentifier(), $this->getItemIdentifier());
+            }
+        }
+        unset($this->parents[$parent::class]);
     }
 
     /**
      *  Метод возвращать дочерние элементы или пустой массив
      *  Если тип связи не настроен выбрасывается исключение
      * @param string $class Имя класса родителя например \ChelBit\Smart\CRM\Invoice::class
-     * @return static[]
+     * @return Smart[]
      * @throws ArgumentException
      * @throws ObjectPropertyException
      * @throws SystemException
      */
     public function getChildren(string $class) : array
     {
-        if(isset($this->children)){
-            return $this->children;
+        if(isset($this->children[$class])){
+            return $this->children[$class];
         }
         /**
          * @var Smart $class
@@ -195,14 +232,64 @@ abstract class Smart
             throw new SystemException("Смарт-процесс ".$class::getEntityTypeTitle()." не может быть дочерним для ".$this::getEntityTypeTitle());
         }
         $childrenItemIdentifiers = $relationManager->getChildElements($this->getItemIdentifier());
+        $this->children[$class] = [];
         foreach ($childrenItemIdentifiers as $childrenItemIdentifier){
             if($childrenItemIdentifier->getEntityTypeId() === $class::getEntityTypeId()){
-                $this->children[] = $class::getInstanceById($childrenItemIdentifier->getEntityId());
+                $this->children[$class][] = $class::getInstanceById($childrenItemIdentifier->getEntityId());
             }
         }
-        return $this->children;
+        return $this->children[$class];
     }
 
+    /**
+     * Добавляет дочерний элемент к текущим
+     * @param Smart $child
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function addChild(Smart $child) : void
+    {
+        if(!static::areItemsBound($this->getItemIdentifier(), $child->getItemIdentifier())){
+            static::bindItems($this->getItemIdentifier(), $child->getItemIdentifier());
+        }
+        unset($this->children[$child::class]);
+    }
+
+    /**
+     * Удаляет связь с дочерним элементом.
+     * Выбросит исключение если данный тип связи не поддерживается
+     * @param Smart $child
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function deleteChild(Smart $child) : void
+    {
+        if(static::areItemsBound($this->getItemIdentifier(), $child->getItemIdentifier())){
+            static::unbindItems($this->getItemIdentifier(), $child->getItemIdentifier());
+        }
+        unset($this->children[$child::class]);
+    }
+
+    /**
+     * Очистит связи с дочерними элементами переданного класса.
+     * @param string $class
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function unsetChildren(string $class): void
+    {
+        $children = $this->getChildren($class);
+        foreach($children as $child){
+            $this->deleteChild($child);
+        }
+        unset($this->children[$class]);
+    }
     /**
      * Метод дополняет переданный текст ошибки информацией о типе сущности и идентификаторе элемента
      * @param string $message
@@ -214,6 +301,44 @@ abstract class Smart
     public function getErrorMessage(string $message) : string
     {
         return $message." NAME:".$this->getEntityTypeName()." ENTITY_TYPE_ID:".$this->getEntityTypeId()." ID:".$this->getItem()->getId();
+    }
+
+    /**
+     * Связывает два элемента CRM. Права на доступ не учитывает
+     * @param ItemIdentifier $parent
+     * @param ItemIdentifier $child
+     * @return void
+     * @throws SystemException
+     */
+    private static function bindItems(ItemIdentifier $parent, ItemIdentifier $child) : void
+    {
+        $res = Container::getInstance()->getRelationManager()->bindItems($parent, $child);
+        if(!$res->isSuccess()){
+            $message = "Ошибка связывания объектов.";
+            $message .= " PARENT_ENTITY_TYPE_ID: ".$parent->getEntityTypeId();
+            $message .= " PARENT_ID: ".$parent->getEntityId();
+            $message .= " CHILD_ENTITY_TYPE_ID: ".$child->getEntityTypeId();
+            $message .= " CHILD_ID: ".$child->getEntityId();
+            $message .= " -> ".implode(";",$res->getErrorMessages());
+            throw new SystemException($message);
+        }
+    }
+    private static function areItemsBound(ItemIdentifier $parent, ItemIdentifier $child) : bool
+    {
+        return Container::getInstance()->getRelationManager()->areItemsBound($parent, $child);
+    }
+    private static function unbindItems(ItemIdentifier $parent, ItemIdentifier $child) : void
+    {
+        $res = Container::getInstance()->getRelationManager()->unbindItems($parent, $child);
+        if(!$res->isSuccess()){
+            $message = "Ошибка отвязывания объектов.";
+            $message .= " PARENT_ENTITY_TYPE_ID: ".$parent->getEntityTypeId();
+            $message .= " PARENT_ID: ".$parent->getEntityId();
+            $message .= " CHILD_ENTITY_TYPE_ID: ".$child->getEntityTypeId();
+            $message .= " CHILD_ID: ".$child->getEntityId();
+            $message .= " -> ".implode(";",$res->getErrorMessages());
+            throw new SystemException($message);
+        }
     }
 
 }
