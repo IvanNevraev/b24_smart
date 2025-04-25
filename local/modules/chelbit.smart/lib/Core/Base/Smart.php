@@ -169,7 +169,7 @@ abstract class Smart
             }
         }
         $this->parents[$class] = null;
-        return $this->parents[$class];
+        return null;
     }
 
     /**
@@ -327,6 +327,13 @@ abstract class Smart
     {
         return Container::getInstance()->getRelationManager()->areItemsBound($parent, $child);
     }
+
+    /**
+     * @param ItemIdentifier $parent
+     * @param ItemIdentifier $child
+     * @return void
+     * @throws SystemException
+     */
     private static function unbindItems(ItemIdentifier $parent, ItemIdentifier $child) : void
     {
         $res = Container::getInstance()->getRelationManager()->unbindItems($parent, $child);
