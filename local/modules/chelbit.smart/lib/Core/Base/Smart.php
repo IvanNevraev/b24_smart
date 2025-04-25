@@ -7,6 +7,7 @@ use Bitrix\Crm\Model\Dynamic\TypeTable;
 use Bitrix\Crm\RelationIdentifier;
 use Bitrix\Crm\Service\Container;
 use Bitrix\Crm\Service\Factory;
+use Bitrix\Crm\Service\Operation\Update;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ObjectPropertyException;
 use Bitrix\Main\SystemException;
@@ -30,6 +31,7 @@ abstract class Smart
      */
     private array $parents;
     private array $children;
+    private Update $update;
 
     /**
      * Метод должен вернуть имя смарт процесса как указано в таблице b_crm_dynamic_type если смарт процесс создавали
@@ -169,7 +171,7 @@ abstract class Smart
             }
         }
         $this->parents[$class] = null;
-        return $this->parents[$class];
+        return null;
     }
 
     /**
@@ -290,6 +292,66 @@ abstract class Smart
         }
         unset($this->children[$class]);
     }
+
+    /**
+     * Получает значение по коду пользовательского поля
+     * @param string $code
+     * @return \Bitrix\Main\ORM\Objectify\Collection|bool|mixed|null
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function getUF(string $code){
+        $factory = static::getFactory();
+        return $this->getItem()->get("UF_".$factory->getUserFieldEntityId()."_".$code);
+    }
+
+    /**
+     * Устанавливает значение по коду пользовательского поля
+     * @param string $code
+     * @param mixed $value
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function setUF(string $code, mixed $value) : void
+    {
+        $factory = static::getFactory();
+        $this->getItem()->set("UF_".$factory->getUserFieldEntityId()."_".$code, $value);
+    }
+
+    /**
+     * Сохраняет изменения с использованием операции
+     * @return void
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function save() : void
+    {
+       $updateOperation = $this->getUpdateOperation();
+       $res = $updateOperation->launch();
+       if(!$res->isSuccess()){
+           throw new SystemException($this->getErrorMessage("Ошибка сохранения изменений".implode(";",$res->getErrorMessages())));
+       }
+    }
+
+    /**
+     * Получение объекта операции обновления
+     * @return Update
+     * @throws ArgumentException
+     * @throws ObjectPropertyException
+     * @throws SystemException
+     */
+    public function getUpdateOperation() : Update
+    {
+        if(isset($this->update)){
+            return $this->update;
+        }
+        $this->update = static::getFactory()->getUpdateOperation($this->getItem());
+        return $this->update;
+    }
     /**
      * Метод дополняет переданный текст ошибки информацией о типе сущности и идентификаторе элемента
      * @param string $message
@@ -327,6 +389,13 @@ abstract class Smart
     {
         return Container::getInstance()->getRelationManager()->areItemsBound($parent, $child);
     }
+
+    /**
+     * @param ItemIdentifier $parent
+     * @param ItemIdentifier $child
+     * @return void
+     * @throws SystemException
+     */
     private static function unbindItems(ItemIdentifier $parent, ItemIdentifier $child) : void
     {
         $res = Container::getInstance()->getRelationManager()->unbindItems($parent, $child);
