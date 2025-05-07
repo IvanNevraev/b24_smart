@@ -1,8 +1,10 @@
 <?php
 namespace ChelBit\Smart\Core;
 
+use Bitrix\Crm\Model\Dynamic\TypeTable;
 use Bitrix\Crm\Service\Container;
 use Bitrix\Main\Diag\Debug;
+use Bitrix\Main\ORM\Data\AddResult;
 use ChelBit\Smart\Core\Base\Smart;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -93,6 +95,36 @@ class Installer
     public function getClasses() : array
     {
         return $this->classes;
+    }
+
+    /**
+     * @return AddResult
+     * @throws \Exception
+     */
+    public static function addEntityType(string $smartClass) : AddResult
+    {
+        $data = [
+            "NAME" => $smartClass::getEntityTypeName(),
+            "TITLE" => $smartClass::getEntityTypeTitle(),
+            "ENTITY_TYPE_ID" => TypeTable::getNextAvailableEntityTypeId(),
+        ];
+        return TypeTable::add(
+            [
+                "IS_CATEGORIES_ENABLED" => static::isCategoriesEnabled(),
+                "IS_STAGES_ENABLED" => static::isStagesEnabled(),
+                "IS_BEGIN_CLOSE_DATES_ENABLED" => static::isBeginCloseDatesEnabled(),
+                "IS_CLIENT_ENABLED" => static::isClientEnabled(),
+                "IS_LINK_WITH_PRODUCTS" => static::isLinkWithProductsEnabled(),
+                "IS_MYCOMPANY_ENABLED"=> static::isMyCompanyEnabled(),
+                "IS_DOCUMENTS_ENABLED"=> static::isDocumentsEnabled(),
+                "IS_SOURCE_ENABLED"=> static::isSourceEnabled(),
+                "IS_OBSERVERS_ENABLED" => static::isObserversEnabled(),
+                "IS_RECYCLEBIN_ENABLED" => static::isRecyclebinEnabled(),
+                "IS_AUTOMATION_ENABLED" => static::isAutomationEnabled(),
+                "IS_BIZ_PROC_ENABLED" => static::isBizProcEnabled(),
+                "IS_SET_OPEN_PERMISSIONS" => static::isSetOpenPermissions(),
+            ]
+        );
     }
 
 }
